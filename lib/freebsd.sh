@@ -259,8 +259,20 @@ freebsd_installworld ( ) {
         echo "    Log: ${WORKDIR}/_.installworld.${CONF}.log"
         exit 1
     fi
-
-    if make SRCCONF=${SRCCONF} __MAKE_CONF=${__MAKE_CONF} TARGET_ARCH=$TARGET_ARCH DESTDIR=$1 distrib-dirs > ${WORKDIR}/_.distrib-dirs.${CONF}.log 2>&1
+	
+	echo "Installing FreeBSD jail at "`date`
+	mkdir -p ${1}/jail/base
+    echo "    Destination: ${1}/jail/base"
+    if make SRCCONF=${SRCCONF} __MAKE_CONF=${__MAKE_CONF} ${_FREEBSD_WORLD_ARGS} ${FREEBSD_INSTALLWORLD_EXTRA_ARGS} ${FREEBSD_INSTALLWORLD_BOARD_ARGS} DESTDIR=${1}/jail/base installworld > ${WORKDIR}/_.installjail.${CONF}.log 2>&1
+    then
+        true # success
+    else
+        echo "Installworld failed."
+        echo "    Log: ${WORKDIR}/_.installjail.${CONF}.log"
+        exit 1
+    fi
+	
+    if make SRCCONF=${SRCCONF} __MAKE_CONF=${__MAKE_CONF} TARGET_ARCH=$TARGET_ARCH DESTDIR=${1} distrib-dirs > ${WORKDIR}/jail.distrib-dirs.${CONF}.log 2>&1
     then
         true # success
     else
@@ -268,7 +280,16 @@ freebsd_installworld ( ) {
         echo "    Log: ${WORKDIR}/_.distrib-dirs.${CONF}.log"
         exit 1
     fi
-
+	
+	if make SRCCONF=${SRCCONF} __MAKE_CONF=${__MAKE_CONF} TARGET_ARCH=$TARGET_ARCH DESTDIR=${1}/jail/base distrib-dirs > ${WORKDIR}/jail.distrib-dirs.${CONF}.log 2>&1
+    then
+        true # success
+    else
+        echo "distrib-dirs failed"
+        echo "    Log: ${WORKDIR}/jail.distrib-dirs.${CONF}.log"
+        exit 1
+    fi
+		
     if make SRCCONF=${SRCCONF} __MAKE_CONF=${__MAKE_CONF} TARGET_ARCH=$TARGET_ARCH DESTDIR=$1 distribution > ${WORKDIR}/_.distribution.${CONF}.log 2>&1
     then
         true # success
@@ -277,7 +298,14 @@ freebsd_installworld ( ) {
         echo "    Log: ${WORKDIR}/_.distribution.${CONF}.log"
         exit 1
     fi
-
+	if make SRCCONF=${SRCCONF} __MAKE_CONF=${__MAKE_CONF} TARGET_ARCH=$TARGET_ARCH DESTDIR=${1}/jail/base distribution > ${WORKDIR}/_.distribution.${CONF}.log 2>&1
+    then
+        true # success
+    else
+        echo "distribution failed"
+        echo "    Log: ${WORKDIR}/jail.distribution.${CONF}.log"
+        exit 1
+    fi
     # Touch up /etc/src.conf so that native "make buildkernel" will DTRT:
     echo "KERNCONF=${KERNCONF}" >> $1/etc/src.conf
 
@@ -344,7 +372,7 @@ freebsd_ubldr_build ( ) {
     rm -rf ${UBLDR_DIR}/boot
     mkdir -p ${UBLDR_DIR}/boot/defaults
 
-    cd stand
+    cd sys/boot
     eval $buildenv make "$@" -m $ubldr_makefiles obj > ${LOGFILE} 2>&1
     eval $buildenv make "$@" -m $ubldr_makefiles clean >> ${LOGFILE} 2>&1
     eval $buildenv make "$@" -m $ubldr_makefiles depend >> ${LOGFILE} 2>&1
@@ -418,7 +446,7 @@ freebsd_loader_efi_build ( ) {
     rm -rf ${EFI_DIR}/boot
     mkdir -p ${EFI_DIR}/boot/defaults
 
-    cd stand
+    cd sys/boot
     eval $buildenv make "$@" -m $sharemk obj > ${LOGFILE} 2>&1
     eval $buildenv make "$@" -m $sharemk clean >> ${LOGFILE} 2>&1
     eval $buildenv make "$@" -m $sharemk depend >> ${LOGFILE} 2>&1
